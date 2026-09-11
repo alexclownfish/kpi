@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"regexp"
@@ -33,10 +34,10 @@ func getJWTSecret() []byte {
 }
 
 // validatePassword 验证密码强度
-// 要求：至少8位，包含大小写字母、数字和特殊字符
+// 要求:至少8位,包含大小写字母、数字和特殊字符
 func validatePassword(password string) error {
 	if len(password) < 8 {
-		return gin.H{"error": "密码长度至少为8位"}
+		return errors.New("密码长度至少为8位")
 	}
 
 	var (
@@ -60,16 +61,16 @@ func validatePassword(password string) error {
 	}
 
 	if !hasUpper {
-		return gin.H{"error": "密码必须包含至少一个大写字母"}
+		return errors.New("密码必须包含至少一个大写字母")
 	}
 	if !hasLower {
-		return gin.H{"error": "密码必须包含至少一个小写字母"}
+		return errors.New("密码必须包含至少一个小写字母")
 	}
 	if !hasNumber {
-		return gin.H{"error": "密码必须包含至少一个数字"}
+		return errors.New("密码必须包含至少一个数字")
 	}
 	if !hasSpecial {
-		return gin.H{"error": "密码必须包含至少一个特殊字符"}
+		return errors.New("密码必须包含至少一个特殊字符")
 	}
 
 	// 检查是否包含常见弱密码模式
@@ -83,7 +84,7 @@ func validatePassword(password string) error {
 	}
 	for _, pattern := range weakPatterns {
 		if matched, _ := regexp.MatchString(pattern, lowerPassword); matched {
-			return gin.H{"error": "密码不能包含常见的弱密码模式"}
+			return errors.New("密码不能包含常见的弱密码模式")
 		}
 	}
 

@@ -253,7 +253,7 @@ func UpdateEmployee(c *gin.Context) {
 	if updateData.Position != "" {
 		updateMap["position"] = updateData.Position
 	}
-	if updateData.DepartmentID != nil {
+	if updateData.DepartmentID != 0 {
 		updateMap["department_id"] = updateData.DepartmentID
 	}
 	// IsActive 是布尔值，需要特殊处理

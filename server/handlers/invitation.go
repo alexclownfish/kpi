@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,18 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// validateScore 验证评分是否在有效范围内（0-100）
-func validateScore(score *float64) error {
-	if score == nil {
-		return nil // 允许空值
-	}
-	if *score < 0 || *score > 100 {
-		return errors.New("评分必须在0-100之间")
-	}
-	return nil
-}
-
-// 邀请评分相关API
+// 邀请评分相关处理器
 
 // 创建邀请请求结构
 type CreateInvitationRequest struct {
