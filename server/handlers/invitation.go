@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,6 +11,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// validateScore 验证评分是否在有效范围内（0-100）
+func validateScore(score *float64) error {
+	if score == nil {
+		return nil // 允许空值
+	}
+	if *score < 0 || *score > 100 {
+		return errors.New("评分必须在0-100之间")
+	}
+	return nil
+}
 
 // 邀请评分相关API
 
@@ -592,6 +604,15 @@ func UpdateInvitedScore(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 验证评分范围
+	if err := validateScore(updateData.Score); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "评分值无效",
+			"message": err.Error(),
+		})
 		return
 	}
 

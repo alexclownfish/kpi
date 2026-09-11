@@ -20,14 +20,14 @@ type Department struct {
 type Employee struct {
 	ID            uint      `json:"id" gorm:"primaryKey"`
 	Name          string    `json:"name" gorm:"not null"`
-	Email         string    `json:"email" gorm:"unique;not null"`
+	Email         string    `json:"email" gorm:"unique;not null;index"`
 	DooTaskUserID *uint     `json:"-"`                 // DooTask用户ID，JSON中不返回
 	Password      string    `json:"-" gorm:"not null"` // 密码，JSON中不返回
 	Position      string    `json:"position"`
-	DepartmentID  uint      `json:"department_id"`
-	ManagerID     *uint     `json:"manager_id"`                   // 直属上级ID，可以为空
-	Role          string    `json:"role" gorm:"default:employee"` // employee, manager, hr
-	IsActive      bool      `json:"is_active" gorm:"default:true"`
+	DepartmentID  uint      `json:"department_id" gorm:"index"`
+	ManagerID     *uint     `json:"manager_id" gorm:"index"`      // 直属上级ID，可以为空
+	Role          string    `json:"role" gorm:"default:employee;index"` // employee, manager, hr
+	IsActive      bool      `json:"is_active" gorm:"default:true;index"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 
@@ -54,7 +54,7 @@ type KPITemplate struct {
 // KPI考核项目模型
 type KPIItem struct {
 	ID          uint      `json:"id" gorm:"primaryKey"`
-	TemplateID  uint      `json:"template_id"`
+	TemplateID  uint      `json:"template_id" gorm:"index"`
 	Name        string    `json:"name" gorm:"not null"`
 	Description string    `json:"description"`
 	MaxScore    float64   `json:"max_score"` // 满分
@@ -69,18 +69,18 @@ type KPIItem struct {
 // KPI评估记录模型
 type KPIEvaluation struct {
 	ID              uint      `json:"id" gorm:"primaryKey"`
-	EmployeeID      uint      `json:"employee_id"`
-	TemplateID      uint      `json:"template_id"`
-	Period          string    `json:"period"` // 2024-01, 2024-Q1, 2024
-	Year            int       `json:"year"`
-	Month           *int      `json:"month,omitempty"`
-	Quarter         *int      `json:"quarter,omitempty"`
-	Status          string    `json:"status" gorm:"default:pending"` // pending, self_evaluated, manager_evaluated, pending_confirm, completed
+	EmployeeID      uint      `json:"employee_id" gorm:"index"`
+	TemplateID      uint      `json:"template_id" gorm:"index"`
+	Period          string    `json:"period" gorm:"index"` // 2024-01, 2024-Q1, 2024
+	Year            int       `json:"year" gorm:"index"`
+	Month           *int      `json:"month,omitempty" gorm:"index"`
+	Quarter         *int      `json:"quarter,omitempty" gorm:"index"`
+	Status          string    `json:"status" gorm:"default:pending;index"` // pending, self_evaluated, manager_evaluated, pending_confirm, completed
 	TotalScore      float64   `json:"total_score"`
 	FinalComment    string    `json:"final_comment"`
-	HasObjection    bool      `json:"has_objection" gorm:"default:false"` // 是否有异议
+	HasObjection    bool      `json:"has_objection" gorm:"default:false;index"` // 是否有异议
 	ObjectionReason string    `json:"objection_reason"`                   // 异议原因（员工填写）
-	CreatedAt       time.Time `json:"created_at"`
+	CreatedAt       time.Time `json:"created_at" gorm:"index"`
 	UpdatedAt       time.Time `json:"updated_at"`
 
 	// 关联关系
@@ -92,8 +92,8 @@ type KPIEvaluation struct {
 // KPI具体得分模型
 type KPIScore struct {
 	ID             uint      `json:"id" gorm:"primaryKey"`
-	EvaluationID   uint      `json:"evaluation_id"`
-	ItemID         uint      `json:"item_id"`
+	EvaluationID   uint      `json:"evaluation_id" gorm:"index"`
+	ItemID         uint      `json:"item_id" gorm:"index"`
 	SelfScore      *float64  `json:"self_score,omitempty"`              // 自评分数
 	SelfComment    string    `json:"self_comment"`                      // 自评评价
 	ManagerScore   *float64  `json:"manager_score,omitempty"`           // 上级评分
@@ -114,8 +114,8 @@ type KPIScore struct {
 // 评论模型
 type EvaluationComment struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
-	EvaluationID uint      `json:"evaluation_id"`
-	UserID       uint      `json:"user_id"` // 评论者ID
+	EvaluationID uint      `json:"evaluation_id" gorm:"index"`
+	UserID       uint      `json:"user_id" gorm:"index"` // 评论者ID
 	Content      string    `json:"content" gorm:"not null"`
 	IsPrivate    bool      `json:"is_private" gorm:"default:false"` // 是否仅自己可见
 	CreatedAt    time.Time `json:"created_at"`
@@ -139,10 +139,10 @@ type SystemSetting struct {
 // 评估邀请模型
 type EvaluationInvitation struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
-	EvaluationID uint      `json:"evaluation_id"`
-	InviterID    uint      `json:"inviter_id"`                    // 邀请者ID（HR）
-	InviteeID    uint      `json:"invitee_id"`                    // 被邀请者ID
-	Status       string    `json:"status" gorm:"default:pending"` // pending, accepted, declined, completed
+	EvaluationID uint      `json:"evaluation_id" gorm:"index"`
+	InviterID    uint      `json:"inviter_id" gorm:"index"`                    // 邀请者ID（HR）
+	InviteeID    uint      `json:"invitee_id" gorm:"index"`                    // 被邀请者ID
+	Status       string    `json:"status" gorm:"default:pending;index"` // pending, accepted, declined, completed
 	Message      string    `json:"message"`                       // 邀请消息
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -157,8 +157,8 @@ type EvaluationInvitation struct {
 // 邀请评分模型
 type InvitedScore struct {
 	ID           uint      `json:"id" gorm:"primaryKey"`
-	InvitationID uint      `json:"invitation_id"`
-	ItemID       uint      `json:"item_id"`
+	InvitationID uint      `json:"invitation_id" gorm:"index"`
+	ItemID       uint      `json:"item_id" gorm:"index"`
 	Score        *float64  `json:"score,omitempty"` // 邀请评分
 	Comment      string    `json:"comment"`         // 邀请评价说明
 	CreatedAt    time.Time `json:"created_at"`

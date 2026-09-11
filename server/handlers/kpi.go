@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"fmt"
 )
 
 // KPI项目管理
@@ -369,6 +370,25 @@ func CreateEvaluation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "请求参数错误",
 			"message": err.Error(),
+		})
+		return
+	}
+
+	// 检查是否已存在相同的评估记录（同一员工、同一模板、同一周期）
+	var existingEvaluation models.KPIEvaluation
+	checkQuery := models.DB.Where("employee_id = ? AND template_id = ? AND period = ? AND year = ?",
+		evaluation.EmployeeID, evaluation.TemplateID, evaluation.Period, evaluation.Year)
+
+	// 如果是月度或季度考核，还需要检查月份或季度
+	if evaluation.Period == "monthly" && evaluation.Month != nil {
+		checkQuery = checkQuery.Where("month = ?", *evaluation.Month)
+	} else if evaluation.Period == "quarterly" && evaluation.Quarter != nil {
+		checkQuery = checkQuery.Where("quarter = ?", *evaluation.Quarter)
+	}
+
+	if err := checkQuery.First(&existingEvaluation).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "该员工在此周期已存在相同的考核记录",
 		})
 		return
 	}
@@ -779,6 +799,9 @@ func DeleteEvaluation(c *gin.Context) {
 	// 删除相关的邀请记录
 	models.DB.Where("evaluation_id = ?", evaluationId).Delete(&models.EvaluationInvitation{})
 
+	// 删除相关的评论记录
+	models.DB.Where("evaluation_id = ?", evaluationId).Delete(&models.EvaluationComment{})
+
 	result := models.DB.Delete(&models.KPIEvaluation{}, evaluationId)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -915,6 +938,17 @@ func GetPendingCountEvaluations(c *gin.Context) {
 }
 
 // 获取评估的评分记录
+// validateScore 验证评分是否在有效范围内 (0-100)
+func validateScore(score *float64) error {
+	if score == nil {
+		return nil
+	}
+	if *score < 0 || *score > 100 {
+		return fmt.Errorf("评分必须在0-100之间，当前值: %.2f", *score)
+	}
+	return nil
+}
+
 func GetEvaluationScores(c *gin.Context) {
 	evaluationId := c.Param("evaluationId")
 	evalId, err := strconv.ParseUint(evaluationId, 10, 32)
@@ -974,11 +1008,21 @@ func UpdateSelfScore(c *gin.Context) {
 		return
 	}
 
+	// 验证评分范围
+	if err := validateScore(updateData.SelfScore); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "评分值无效",
+			"message": err.Error(),
+		})
+		return
+	}
+
 	// 检查是否是第一次保存自评分数（开始自评时）
 	// 如果之前没有自评分数，且现在要保存自评分数，则检查是否有直属上级
 	if score.SelfScore == nil && updateData.SelfScore != nil {
-		// 检查被评估员工是否有直属上级（所有角色都需要检查）
-		if score.Evaluation.Employee.ManagerID == nil {
+		// 检查被评估员工是否有直属上级
+		// HR角色允许没有上级进行自评，其他角色必须有上级
+		if score.Evaluation.Employee.ManagerID == nil && score.Evaluation.Employee.Role != "hr" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "暂无直属上级，请联系HR",
 			})
@@ -1042,6 +1086,15 @@ func UpdateManagerScore(c *gin.Context) {
 		return
 	}
 
+	// 验证评分范围
+	if err := validateScore(updateData.ManagerScore); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "评分值无效",
+			"message": err.Error(),
+		})
+		return
+	}
+
 	result = models.DB.Model(&score).Updates(map[string]interface{}{
 		"manager_score":   updateData.ManagerScore,
 		"manager_comment": updateData.ManagerComment,
@@ -1093,6 +1146,15 @@ func UpdateHRScore(c *gin.Context) {
 	if err := c.ShouldBindJSON(&updateData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "请求参数错误",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// 验证评分范围
+	if err := validateScore(updateData.HRScore); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "评分值无效",
 			"message": err.Error(),
 		})
 		return

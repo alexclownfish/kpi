@@ -209,15 +209,27 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
+	// 确定目标角色
 	targetRole := updateData.Role
 	if targetRole == "" {
 		targetRole = employee.Role
 	}
-	targetManagerID := updateData.ManagerID
-	if targetRole == "employee" && targetManagerID == nil {
+
+	// 确定目标 manager_id
+	var targetManagerID *uint
+	if updateData.ManagerID != nil {
+		// 用户明确提供了 manager_id（可能是具体的ID或者0表示清空）
+		if *updateData.ManagerID == 0 {
+			targetManagerID = nil // 清空上级
+		} else {
+			targetManagerID = updateData.ManagerID
+		}
+	} else {
+		// 用户没有提供 manager_id，保持原值
 		targetManagerID = employee.ManagerID
 	}
 
+	// 验证：普通员工必须有上级
 	if targetRole == "employee" && (targetManagerID == nil || *targetManagerID == 0) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "普通员工必须选择直属上级",
@@ -225,25 +237,27 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
-	roleValue := updateData.Role
-	if roleValue == "" {
-		roleValue = employee.Role
-	}
-	managerValue := updateData.ManagerID
-	if updateData.Role == "" && updateData.ManagerID == nil {
-		managerValue = employee.ManagerID
-	}
-
 	// 使用 map 来确保 nil 值能够被正确更新
 	updateMap := map[string]interface{}{
-		"name":          updateData.Name,
-		"email":         updateData.Email,
-		"position":      updateData.Position,
-		"department_id": updateData.DepartmentID,
-		"manager_id":    managerValue, // 支持 nil 值以清空直属上级
-		"role":          roleValue,
-		"is_active":     updateData.IsActive,
+		"manager_id": targetManagerID, // 支持 nil 值以清空直属上级
+		"role":       targetRole,
 	}
+
+	// 只更新提供了的字段
+	if updateData.Name != "" {
+		updateMap["name"] = updateData.Name
+	}
+	if updateData.Email != "" {
+		updateMap["email"] = updateData.Email
+	}
+	if updateData.Position != "" {
+		updateMap["position"] = updateData.Position
+	}
+	if updateData.DepartmentID != nil {
+		updateMap["department_id"] = updateData.DepartmentID
+	}
+	// IsActive 是布尔值，需要特殊处理
+	updateMap["is_active"] = updateData.IsActive
 
 	result = models.DB.Model(&employee).Updates(updateMap)
 	if result.Error != nil {

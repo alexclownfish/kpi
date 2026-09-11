@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"net/http"
+	"os"
+	"regexp"
 	"slices"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,8 +16,79 @@ import (
 	"dootask-kpi-server/utils"
 )
 
-// JWT密钥 - 生产环境中应该使用环境变量
-var jwtSecret = []byte("your-secret-key-change-in-production")
+// JWT密钥 - 从环境变量读取
+var jwtSecret = getJWTSecret()
+
+// getJWTSecret 从环境变量获取JWT密钥
+func getJWTSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// 开发环境使用默认密钥，生产环境必须设置环境变量
+		if os.Getenv("GIN_MODE") == "release" {
+			panic("JWT_SECRET environment variable is required in production")
+		}
+		return []byte("dev-secret-key-change-in-production")
+	}
+	return []byte(secret)
+}
+
+// validatePassword 验证密码强度
+// 要求：至少8位，包含大小写字母、数字和特殊字符
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return gin.H{"error": "密码长度至少为8位"}
+	}
+
+	var (
+		hasUpper   = false
+		hasLower   = false
+		hasNumber  = false
+		hasSpecial = false
+	)
+
+	for _, char := range password {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsNumber(char):
+			hasNumber = true
+		case unicode.IsPunct(char) || unicode.IsSymbol(char):
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper {
+		return gin.H{"error": "密码必须包含至少一个大写字母"}
+	}
+	if !hasLower {
+		return gin.H{"error": "密码必须包含至少一个小写字母"}
+	}
+	if !hasNumber {
+		return gin.H{"error": "密码必须包含至少一个数字"}
+	}
+	if !hasSpecial {
+		return gin.H{"error": "密码必须包含至少一个特殊字符"}
+	}
+
+	// 检查是否包含常见弱密码模式
+	weakPatterns := []string{
+		"password", "123456", "qwerty", "admin", "letmein",
+		"welcome", "monkey", "dragon", "master", "sunshine",
+	}
+	lowerPassword := ""
+	for _, char := range password {
+		lowerPassword += string(unicode.ToLower(char))
+	}
+	for _, pattern := range weakPatterns {
+		if matched, _ := regexp.MatchString(pattern, lowerPassword); matched {
+			return gin.H{"error": "密码不能包含常见的弱密码模式"}
+		}
+	}
+
+	return nil
+}
 
 // JWT Claims结构
 type Claims struct {
@@ -122,6 +196,12 @@ func Register(c *gin.Context) {
 	var manager models.Employee
 	if err := models.DB.Where("department_id = ? AND role in ?", req.DepartmentID, []string{"manager", "hr"}).First(&manager).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "部门不存在上级"})
+		return
+	}
+
+	// 验证密码强度
+	if err := validatePassword(req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
