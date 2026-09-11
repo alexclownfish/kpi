@@ -11,6 +11,7 @@ services:
     environment:
       - SYSTEM_MODE=standalone
       - GIN_MODE=release
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret-in-production}
     ports:
       - "13808:8080"
 

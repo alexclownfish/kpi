@@ -223,19 +223,28 @@ git clone https://github.com/dootask/kpi
 cd kpi
 ```
 
-2. **安装前端依赖**
+2. **配置环境变量**
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑 .env 文件，设置 JWT 密钥（生产环境必须修改）
+# JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+```
+
+3. **安装前端依赖**
 ```bash
 npm install
 ```
 
-3. **安装后端依赖**
+4. **安装后端依赖**
 ```bash
 cd server
 go mod tidy
 cd ..
 ```
 
-4. **启动开发环境**
+5. **启动开发环境**
 ```bash
 # 同时启动前后端（推荐）
 npm run dev:all
@@ -245,24 +254,67 @@ npm run dev          # 仅启动前端
 cd server && CGO_ENABLED=1 go run main.go  # 仅启动后端
 ```
 
-5. **访问系统**
+6. **访问系统**
 - 前端：http://localhost:3000
 - 后端：http://localhost:8080
 
 ### 生产环境部署
 
-1. **构建前端**
+#### 方式一：Docker Compose（推荐）
+
+1. **配置环境变量**
+```bash
+# 生成强随机JWT密钥
+openssl rand -base64 32
+
+# 设置环境变量（Linux/Mac）
+export JWT_SECRET="your-generated-secret-key"
+
+# 设置环境变量（Windows PowerShell）
+$env:JWT_SECRET="your-generated-secret-key"
+```
+
+2. **启动服务**
+```bash
+docker-compose up -d
+```
+
+3. **访问系统**
+- 前端：http://localhost:13003
+- 后端：http://localhost:13808
+
+#### 方式二：手动构建
+
+1. **配置JWT密钥**
+```bash
+# 生成并设置JWT密钥（必须）
+export JWT_SECRET=$(openssl rand -base64 32)
+```
+
+2. **构建前端**
 ```bash
 npm run build
 npm run start
 ```
 
-2. **构建后端**
+3. **构建后端**
 ```bash
 cd server
 CGO_ENABLED=1 go build -o kpi-server main.go
 ./kpi-server
 ```
+
+### ⚠️ 安全提示
+
+**生产环境部署前必须修改 JWT 密钥！**
+
+- JWT 密钥用于加密用户认证令牌，默认密钥仅用于开发测试
+- 生产环境必须使用强随机密钥，建议至少 32 位
+- 可以使用以下命令生成安全的密钥：
+  ```bash
+  openssl rand -base64 32
+  ```
+- 密钥泄露会导致严重的安全风险，请妥善保管
 
 ## 🗄️ 数据库
 
