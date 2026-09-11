@@ -1,0 +1,10 @@
+# 排除 app 目录
+/app/
+
+## 常见忽略项
+#node_modules/
+#.next/
+#.env
+#.env.local
+#*.log
+#.DS_Store
